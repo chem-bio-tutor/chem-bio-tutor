@@ -311,7 +311,6 @@ function seedData(){
   saveDB();
 }
 
-// Проверка на занятость с учётом длительности
 function isTimeBusy(date, time, duration, excludeId){
   const newStart = timeToMins(time);
   const newEnd = newStart + duration;
@@ -319,7 +318,6 @@ function isTimeBusy(date, time, duration, excludeId){
     if (l.date !== date || l.canceled || l.id === excludeId) return false;
     const lStart = timeToMins(l.time);
     const lEnd = lStart + (l.duration || 90);
-    // Пересечение интервалов
     return newStart < lEnd && newEnd > lStart;
   });
 }
@@ -521,17 +519,35 @@ function openLesson(id){
     l.hw = newHw;
 
     const key = l.studentId+"|"+l.subject;
-        if(newTopic && newTopic !== oldTopic){
+    
+    // Перенос темы
+    if(newTopic && newTopic !== oldTopic){
       if(!DB.topics[key]) DB.topics[key] = {passed:[], next:""};
       if(oldTopic) DB.topics[key].passed.push(oldTopic);
       DB.topics[key].next = newTopic;
       
-      // Находим следующий урок и записываем туда тему
       const nextLesson = DB.lessons
         .filter(x => x.studentId === l.studentId && x.subject === l.subject && x.date > l.date && !x.canceled)
         .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
       if(nextLesson) {
         nextLesson.topic = newTopic;
+      }
+    }
+
+    // Перенос ДЗ
+    if(newHw && newHw !== oldHw){
+      const nextLesson = DB.lessons
+        .filter(x => x.studentId === l.studentId && x.subject === l.subject && x.date > l.date && !x.canceled)
+        .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
+      if(nextLesson) {
+        nextLesson.nextHw = newHw;
+      }
+    } else if (!newHw && oldHw) {
+      const nextLesson = DB.lessons
+        .filter(x => x.studentId === l.studentId && x.subject === l.subject && x.date > l.date && !x.canceled)
+        .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
+      if(nextLesson) {
+        nextLesson.nextHw = "";
       }
     }
 
@@ -899,6 +915,7 @@ window.showTab = function(tab){
 };
 
 window.showTab('schedule');
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
