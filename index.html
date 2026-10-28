@@ -114,6 +114,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .exam-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px;background:var(--bg);border-radius:8px;}
 .exam-row input[type="date"]{border:none;background:transparent;font-size:13px;width:130px;padding:0;}
 .prob-row{display:flex;gap:8px;margin-top:6px;align-items:center;font-size:13px;}
+.info-block{background:var(--bg);padding:10px;border-radius:10px;margin-bottom:14px;border:1px solid var(--line);}
+.info-block label{display:block;font-size:11px;font-weight:600;color:var(--text-soft);margin-bottom:2px;}
+.info-block div{font-size:14px;font-weight:500;}
 </style>
 </head>
 <body>
@@ -460,15 +463,22 @@ function openLesson(id){
 
   const ov = document.getElementById('overlay');
   const m = document.getElementById('modal');
+  
   m.innerHTML = `
     <div class="modal-head"><h2>${st.name} · ${l.subject}</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div style="font-size:14px;color:var(--text-soft);margin-bottom:14px">${fmtDateFull(lessonDate)} · ${l.time}</div>
     
-    ${l.nextHw ? `<div class="field" style="background:var(--green-soft);padding:10px;border-radius:10px;margin-bottom:14px"><label style="color:var(--green);margin-bottom:2px">ДЗ с прошлого урока</label><div style="font-size:14px">${l.nextHw}</div></div>` : ''}
+    <div class="info-block">
+      <label>Тема этого урока (пройдена)</label>
+      <div>${l.topic || "—"}</div>
+    </div>
 
-    <div class="field"><label>Тема (уйдёт на следующий урок)</label><textarea id="m-topic">${l.topic||""}</textarea></div>
+    ${l.nextHw ? `<div class="info-block" style="background:var(--green-soft);border-color:var(--green-soft)"><label style="color:var(--green)">ДЗ с прошлого урока</label><div>${l.nextHw}</div></div>` : ''}
+
+    <div class="field"><label>Новая тема (уйдёт на следующий урок)</label><textarea id="m-new-topic" placeholder="Что будем проходить в следующий раз..."></textarea></div>
     <div class="field"><label>Заметка</label><textarea id="m-note">${l.note||""}</textarea></div>
     <div class="field"><label>ДЗ (уйдёт на следующий урок)</label><textarea id="m-hw">${l.hw||""}</textarea></div>
+    
     <div class="field"><label>Статус</label>
       <div class="pill-row">
         <button class="pill ${l.done?'green':(started?'red':'')}" id="p-done">${l.done?'Проведён':'Не проведён'}</button>
@@ -509,32 +519,29 @@ function openLesson(id){
   };
 
   document.getElementById('p-save').onclick = ()=>{
-    const newTopic = document.getElementById('m-topic').value.trim();
-    const oldTopic = l.topic||"";
+    const newTopicStr = document.getElementById('m-new-topic').value.trim();
     const newHw = document.getElementById('m-hw').value.trim();
     const oldHw = l.hw||"";
     
-    l.topic = newTopic;
     l.note = document.getElementById('m-note').value.trim();
     l.hw = newHw;
 
     const key = l.studentId+"|"+l.subject;
     
-    // Перенос темы
-    if(newTopic && newTopic !== oldTopic){
+    // Если ввели НОВУЮ тему — отправляем на следующий урок
+    if(newTopicStr){
       if(!DB.topics[key]) DB.topics[key] = {passed:[], next:""};
-      if(oldTopic) DB.topics[key].passed.push(oldTopic);
-      DB.topics[key].next = newTopic;
+      DB.topics[key].next = newTopicStr;
       
       const nextLesson = DB.lessons
         .filter(x => x.studentId === l.studentId && x.subject === l.subject && x.date > l.date && !x.canceled)
         .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0];
       if(nextLesson) {
-        nextLesson.topic = newTopic;
+        nextLesson.topic = newTopicStr;
       }
     }
 
-    // Перенос ДЗ
+    // Если ввели ДЗ — отправляем на следующий урок
     if(newHw && newHw !== oldHw){
       const nextLesson = DB.lessons
         .filter(x => x.studentId === l.studentId && x.subject === l.subject && x.date > l.date && !x.canceled)
